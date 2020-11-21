@@ -1,19 +1,23 @@
 <idea-plugin>
-    <id>com.github.legendmohe.coderearranger</id>
+    <id>com.legendmohe.coderearranger</id>
     <name>CodeRearranger</name>
     <vendor>legendmohe</vendor>
 
     <!-- Product and plugin compatibility requirements -->
     <!-- https://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <applicationService serviceImplementation="com.github.legendmohe.coderearranger.services.MyApplicationService"/>
-        <projectService serviceImplementation="com.github.legendmohe.coderearranger.services.MyProjectService"/>
+        <projectService serviceImplementation="com.legendmohe.coderearranger.services.MyProjectService"/>
+        <toolWindow id="CodeRearranger"
+            icon="AllIcons.General.Filter"
+            anchor="bottom"
+            factoryClass="com.legendmohe.coderearranger.CodeRearrangerToolWindowFactory"/>
     </extensions>
 
     <applicationListeners>
-        <listener class="com.github.legendmohe.coderearranger.listeners.MyProjectManagerListener"
+        <listener class="com.legendmohe.coderearranger.listeners.MyProjectManagerListener"
                   topic="com.intellij.openapi.project.ProjectManagerListener"/>
     </applicationListeners>
 </idea-plugin>
