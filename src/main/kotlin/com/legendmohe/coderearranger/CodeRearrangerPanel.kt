@@ -22,6 +22,7 @@ import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.psi.*
 import com.legendmohe.coderearranger.TableRowTransferHandler.Reorderable
+import java.awt.Component
 import java.awt.event.*
 import java.util.*
 import javax.swing.DropMode
@@ -130,6 +131,20 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
                 column.preferredWidth = table.parent.size.getWidth().toInt() - cumulativeActual
             }
         }
+        updateRowHeights()
+    }
+
+    private fun updateRowHeights() {
+        codeTable?.apply {
+            for (row in 0 until rowCount) {
+                var rowHeight: Int = rowHeight
+                for (column in 0 until columnCount) {
+                    val comp: Component = prepareRenderer(getCellRenderer(row, column), row, column)
+                    rowHeight = rowHeight.coerceAtLeast(comp.preferredSize.height)
+                }
+                setRowHeight(row, rowHeight)
+            }
+        }
     }
 
     private fun updateDataAndSyncSelection() {
@@ -160,7 +175,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
                 exchangeElement(nextInfo, curInfo)
 
                 // TODO - 优化掉这个全局刷新吧
-                selectedRows?.get(index)?.inc() // 下移一行
+                selectedRows?.set(index, i + 1) // 下移一行
                 syncCurrentFile(null, false)
             }
         }
@@ -183,7 +198,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
                 exchangeElement(preInfo, curInfo)
 
                 // TODO - 优化掉这个全局刷新吧
-                selectedRows?.get(index)?.dec() // 上移一行
+                selectedRows?.set(index, i - 1)  // 上移一行
                 syncCurrentFile(null, false)
             }
         }
@@ -203,7 +218,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
         val selectedInfo = codeInfos[selectedRow]
         val parserFacade = PsiParserFacade.SERVICE.getInstance(project)
         val psiComment = parserFacade.createLineCommentFromText(JavaLanguage.INSTANCE, SECTION_PLACEHOLDER)
-        //        PsiComment psiComment = JavaPsiFacade.getElementFactory(project).createCommentFromText(SECTION_PLACEHOLDER, null);
+        //  PsiComment psiComment = JavaPsiFacade.getElementFactory(project).createCommentFromText(SECTION_PLACEHOLDER, null);
         val selectedEle = selectedInfo.element.value as PsiElement
         if (selectedEle is PsiComment) {
             // 注释不能再加注释
@@ -344,16 +359,6 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
                 if (childEle == null) {
                     continue
                 }
-                // 额外收集line comment
-                childEle.children.filter {
-                    it is PsiComment && it.tokenType == JavaTokenType.END_OF_LINE_COMMENT
-                }.forEach {
-                    codeInfos.add(CodeInfo(
-                            createPsiTreeElementFromPsiMember(it),
-                            CodeType.SECTION,
-                            it.textRange
-                    ))
-                }
                 when (childEle) {
                     is PsiField -> {
                         codeInfos.add(CodeInfo(
@@ -469,7 +474,13 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
         }
 
         fun printTitle(): String {
-            return element.presentation.presentableText ?: ""
+            // 额外收集line comment
+            val title = (element.value as PsiElement).children.filter {
+                it is PsiComment
+                        && it.tokenType == JavaTokenType.END_OF_LINE_COMMENT
+                        && it.text.startsWith("////////")
+            }.joinToString("<br>") { it.text }
+            return "<html>${if (title.isNotEmpty()) "$title<br>" else ""}${element.presentation.presentableText}</html>"
         }
     }
 
