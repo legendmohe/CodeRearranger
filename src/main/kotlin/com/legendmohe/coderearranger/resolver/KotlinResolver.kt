@@ -95,7 +95,7 @@ class KotlinResolver : ILanguageResolver {
         if (parentEle == null) {
             return null
         }
-        return if (parentEle is KtClassOrObject) {
+        return if (parentEle is KtClassOrObject || parentEle is KtFile) {
             parentEle
         } else findParentClass(parentEle.parent)
     }
