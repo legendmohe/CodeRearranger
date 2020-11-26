@@ -1,4 +1,4 @@
-package com.legendmohe.coderearranger.services
+package com.legendmohe.coderearranger
 
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -8,7 +8,7 @@ import com.intellij.openapi.vfs.newvfs.events.VFileContentChangeEvent
 import com.intellij.openapi.vfs.newvfs.events.VFileEvent
 import com.intellij.util.messages.MessageBusConnection
 
-class MyProjectService(project: Project): BulkFileListener {
+class MyProjectService(project: Project) : BulkFileListener {
 
     private var connection: MessageBusConnection = project.messageBus.connect()
 

@@ -1,9 +1,8 @@
-package com.legendmohe.coderearranger.listeners
+package com.legendmohe.coderearranger
 
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.project.ProjectManagerListener
-import com.legendmohe.coderearranger.services.MyProjectService
 
 internal class MyProjectManagerListener : ProjectManagerListener {
 

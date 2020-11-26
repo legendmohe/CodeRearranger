@@ -1,29 +1,26 @@
 package com.legendmohe.coderearranger
 
-import com.intellij.ide.structureView.StructureViewTreeElement
-import com.intellij.ide.structureView.impl.common.PsiTreeElementBase
-import com.intellij.ide.structureView.impl.java.ClassInitializerTreeElement
-import com.intellij.ide.structureView.impl.java.JavaClassTreeElement
-import com.intellij.ide.structureView.impl.java.PsiFieldTreeElement
-import com.intellij.ide.structureView.impl.java.PsiMethodTreeElement
-import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
-import com.intellij.openapi.editor.Document
-import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.ScrollType
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Pair
-import com.intellij.openapi.util.TextRange
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.psi.*
 import com.legendmohe.coderearranger.TableRowTransferHandler.Reorderable
+import com.legendmohe.coderearranger.resolver.ICodeInfo
+import com.legendmohe.coderearranger.resolver.ILanguageResolver
+import com.legendmohe.coderearranger.resolver.JavaResolver
+import com.legendmohe.coderearranger.resolver.KotlinResolver
+import org.jetbrains.kotlin.psi.KtFile
 import java.awt.Component
-import java.awt.event.*
+import java.awt.event.HierarchyBoundsAdapter
+import java.awt.event.HierarchyEvent
+import java.awt.event.MouseAdapter
+import java.awt.event.MouseEvent
 import java.util.*
 import javax.swing.DropMode
 import javax.swing.JButton
@@ -32,6 +29,11 @@ import javax.swing.JTable
 import javax.swing.table.AbstractTableModel
 
 class CodeRearrangerPanel(private val project: Project, private val toolWindow: ToolWindow) {
+
+    companion object {
+        const val SECTION_PLACEHOLDER = "//////////////////////////////////###////////////////////////////////////"
+    }
+
     var mainPanel: JPanel? = null
     var refreshBtn: JButton? = null
     var codeTable: JTable? = null
@@ -41,7 +43,17 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
 
     private var selectedRows: IntArray? = null
     private var lastEditFile: Long = 0
-    private var targetClass: PsiClass? = null
+    private var resolver: ILanguageResolver? = null
+
+    init {
+        refreshBtn?.addActionListener { syncCurrentFile(null, true) }
+        upBtn?.addActionListener { moveEleUp() }
+        downBtn?.addActionListener { moveEleDown() }
+        addSection?.addActionListener { handleAddSection() }
+        toolWindow.activate({ syncCurrentFile(null, true) }, true)
+        initTable()
+        initData()
+    }
 
     ///////////////////////////////////ui///////////////////////////////////
 
@@ -85,7 +97,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
                     val codeInfo = codeInfos[row]
                     val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
                     editor.caretModel.moveToOffset(
-                            (codeInfo.element.value as PsiElement).textOffset
+                            (codeInfo.getViewTreeElement().value as PsiElement).textOffset
                     )
                     editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
                 }
@@ -216,10 +228,9 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
             it.first()
         } ?: 0
         val selectedInfo = codeInfos[selectedRow]
-        val parserFacade = PsiParserFacade.SERVICE.getInstance(project)
-        val psiComment = parserFacade.createLineCommentFromText(JavaLanguage.INSTANCE, SECTION_PLACEHOLDER)
-        //  PsiComment psiComment = JavaPsiFacade.getElementFactory(project).createCommentFromText(SECTION_PLACEHOLDER, null);
-        val selectedEle = selectedInfo.element.value as PsiElement
+        val psiComment: PsiElement = resolver?.getCommentFromText(project, SECTION_PLACEHOLDER)
+                ?: return
+        val selectedEle = selectedInfo.getViewTreeElement().value as PsiElement
         if (selectedEle is PsiComment) {
             // 注释不能再加注释
             return
@@ -232,9 +243,9 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
         }
     }
 
-    private fun exchangeElement(targetInfo: CodeInfo, curInfo: CodeInfo) {
-        val targetEle = targetInfo.element.value as PsiElement
-        val curEle = curInfo.element.value as PsiElement
+    private fun exchangeElement(targetInfo: ICodeInfo, curInfo: ICodeInfo) {
+        val targetEle = targetInfo.getViewTreeElement().value as PsiElement
+        val curEle = curInfo.getViewTreeElement().value as PsiElement
         val copy = targetEle.copy()
         targetEle.replace(curEle)
         curEle.replace(copy)
@@ -253,8 +264,8 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
         WriteCommandAction.runWriteCommandAction(project) {
             val fromCode = codeInfos[fromIndex]
             val toCode = codeInfos[toIndex]
-            val fromEle = fromCode.element.value as PsiElement
-            val toEle = toCode.element.value as PsiElement
+            val fromEle = fromCode.getViewTreeElement().value as PsiElement
+            val toEle = toCode.getViewTreeElement().value as PsiElement
             val copy = fromEle.copy()
             fromEle.delete()
             val parent = toEle.parent
@@ -266,9 +277,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
                 }
             }
             // 每移动一个就刷一次
-            val editor = FileEditorManager.getInstance(project).selectedTextEditor
-                    ?: return@runWriteCommandAction
-            collectCodeInfo(targetClass, editor)
+            collectCodeInfo(null, false, project)
         }
     }
 
@@ -280,7 +289,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
 
     private var debouncer: Debouncer? = null
 
-    private val codeInfos: MutableList<CodeInfo> = ArrayList()
+    private val codeInfos: MutableList<ICodeInfo> = ArrayList()
 
     private fun initData() {
         debouncer = Debouncer(500)
@@ -288,7 +297,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
 
     fun syncCurrentFile(virtualFile: VirtualFile?, syncCaretTarget: Boolean) {
         if (!syncCaretTarget) {
-            syncCurrentFileInternal(virtualFile, false)
+            ApplicationManager.getApplication().invokeLater { syncCurrentFileInternal(virtualFile, false) }
         } else {
             debouncer?.call(CodeRearrangerPanel::class.java) { ApplicationManager.getApplication().invokeLater { syncCurrentFileInternal(virtualFile, syncCaretTarget) } }
         }
@@ -296,6 +305,9 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
 
     private fun syncCurrentFileInternal(virtualFile: VirtualFile?, syncCaretTarget: Boolean) {
         if (!toolWindow.isVisible) {
+            return
+        }
+        if (project.isDisposed) {
             return
         }
         val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
@@ -311,133 +323,36 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
             }
         }
         lastEditFile = curFile?.modificationStamp ?: 0
+
         val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) ?: return
+        initResolverFromFile(file)
+
+        var targetEle: PsiElement? = null
         // 是否使用光标下的类
         if (syncCaretTarget) {
             val caretOffset = editor.caretModel.offset
             val elementAt = file.findElementAt(caretOffset)
-            targetClass = findParentClass(elementAt)
+            targetEle = resolver?.findParentClass(elementAt)
         }
-        if (targetClass == null) {
-            for (child in file.children) {
-                if (child is PsiClass) {
-                    targetClass = child
-                    break
-                }
-            }
-        }
-        if (targetClass != null) {
-            collectCodeInfo(targetClass, editor)
-        }
-        println("start sync code $targetClass")
+        collectCodeInfo(targetEle, true, project)
         updateDataAndSyncSelection()
     }
 
-    private fun findParentClass(elementAt: PsiElement?): PsiClass? {
-        if (elementAt == null) {
-            return null
+    // TODO - 这里看看怎么重构一下
+    private fun initResolverFromFile(file: PsiFile) {
+        if (file is KtFile) {
+            resolver = KotlinResolver()
+        } else if (file is PsiJavaFile) {
+            resolver = JavaResolver()
         }
-        return if (elementAt is PsiClass) {
-            elementAt
-        } else findParentClass(elementAt.parent)
     }
 
-    private val curDocument: Document?
-        get() {
-            val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return null
-            return editor.document
-        }
-
-    private fun collectCodeInfo(psiClass: PsiClass?,
-                                editor: Editor) {
+    private fun collectCodeInfo(targetEle: PsiElement?, findChild: Boolean, project: Project) {
         // 先清空
         codeInfos.clear()
-        // 再收集
-        psiClass?.apply {
-            var childEle = firstChild
-            do {
-                if (childEle == null) {
-                    continue
-                }
-                when (childEle) {
-                    is PsiField -> {
-                        codeInfos.add(CodeInfo(
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.FIELD,
-                                childEle.getTextRange()
-                        ))
-                    }
-                    is PsiMethod -> {
-                        codeInfos.add(CodeInfo(
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.METHOD,
-                                childEle.getTextRange()
-                        ))
-                    }
-                    is PsiClass -> {
-                        codeInfos.add(CodeInfo(
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.CLASS,
-                                childEle.getTextRange()
-                        ))
-                    }
-                    is PsiClassInitializer -> {
-                        codeInfos.add(CodeInfo(
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.STATIC_INITIALIZER,
-                                childEle.getTextRange()
-                        ))
-                    }
-                    is PsiComment -> {
-                        codeInfos.add(CodeInfo(
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.SECTION,
-                                childEle.getTextRange()
-                        ))
-                    }
-                }
-
-//            System.out.println(">>  " + childEle.toString());
-                childEle = childEle.nextSibling
-            } while (childEle != null)
-
+        resolver?.collectCodeInfo(project, targetEle, findChild)?.let {
+            codeInfos.addAll(it)
         }
-    }
-
-    /**
-     * 支持更多语言
-     *
-     * @param ele
-     * @return
-     */
-    private fun createPsiTreeElementFromPsiMember(ele: PsiElement): StructureViewTreeElement {
-        if (ele is PsiField) {
-            return PsiFieldTreeElement(ele, false)
-        }
-        if (ele is PsiMethod) {
-            return PsiMethodTreeElement(ele, false)
-        }
-        if (ele is PsiClass) {
-            return JavaClassTreeElement(ele, false, object : HashSet<PsiClass?>() {
-                init {
-                    add(ele)
-                }
-            })
-        }
-        if (ele is PsiClassInitializer) {
-            return ClassInitializerTreeElement(ele)
-        }
-        return if (ele is PsiComment) {
-            object : PsiTreeElementBase<PsiComment?>(ele) {
-                override fun getPresentableText(): String? {
-                    return ele.getText()
-                }
-
-                override fun getChildrenBase(): Collection<StructureViewTreeElement> {
-                    return emptyList()
-                }
-            }
-        } else PsiFieldTreeElement(null, false)
     }
 
     private fun checkDumping(showHint: Boolean): Boolean {
@@ -448,57 +363,5 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
             return true
         }
         return false
-    }
-
-    ///////////////////////////////////inner class///////////////////////////////////
-    private inner class CodeInfo(var element: StructureViewTreeElement, var type: CodeType, var textRange: TextRange) {
-        val lineNumber: Pair<Int, Int>
-            get() {
-                val curDocument = curDocument
-                        ?: return Pair(0, 0)
-                return Pair(
-                        curDocument.getLineNumber(textRange.startOffset),
-                        curDocument.getLineNumber(textRange.endOffset)
-                )
-            }
-
-        fun printLineRange(): String {
-            val pair = lineNumber
-            return if (pair.first == pair.second) {
-                pair.first.toString()
-            } else pair.first.toString() + "~" + pair.second
-        }
-
-        fun printTypeName(): String {
-            return type.toString()
-        }
-
-        fun printTitle(): String {
-            // 额外收集line comment
-            val title = (element.value as PsiElement).children.filter {
-                it is PsiComment
-                        && it.tokenType == JavaTokenType.END_OF_LINE_COMMENT
-                        && it.text.startsWith("////////")
-            }.joinToString("<br>") { it.text }
-            return "<html>${if (title.isNotEmpty()) "$title<br>" else ""}${element.presentation.presentableText}</html>"
-        }
-    }
-
-    private enum class CodeType {
-        METHOD, FIELD, CLASS, STATIC_INITIALIZER, SECTION
-    }
-
-    companion object {
-        const val SECTION_PLACEHOLDER = "//////////////////////////////////###////////////////////////////////////"
-    }
-
-    init {
-        refreshBtn?.addActionListener { e: ActionEvent? -> syncCurrentFile(null, true) }
-        upBtn?.addActionListener { e: ActionEvent? -> moveEleUp() }
-        downBtn?.addActionListener { e: ActionEvent? -> moveEleDown() }
-        addSection?.addActionListener { e: ActionEvent? -> handleAddSection() }
-        toolWindow.activate({ syncCurrentFile(null, true) }, true)
-        initTable()
-        initData()
     }
 }

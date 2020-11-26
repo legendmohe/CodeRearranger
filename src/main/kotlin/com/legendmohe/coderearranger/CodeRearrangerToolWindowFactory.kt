@@ -9,7 +9,6 @@ import com.intellij.openapi.wm.ToolWindow
 import com.intellij.openapi.wm.ToolWindowFactory
 import com.intellij.ui.content.Content
 import com.intellij.ui.content.ContentFactory
-import com.legendmohe.coderearranger.services.MyProjectService
 import javax.swing.JComponent
 
 class CodeRearrangerToolWindowFactory : ToolWindowFactory {

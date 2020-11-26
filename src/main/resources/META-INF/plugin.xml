@@ -7,9 +7,10 @@
     <!-- https://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.java</depends>
+    <depends>org.jetbrains.kotlin</depends>
 
     <extensions defaultExtensionNs="com.intellij">
-        <projectService serviceImplementation="com.legendmohe.coderearranger.services.MyProjectService"/>
+        <projectService serviceImplementation="com.legendmohe.coderearranger.MyProjectService"/>
         <toolWindow id="CodeRearranger"
             icon="AllIcons.General.Filter"
             anchor="bottom"
@@ -17,7 +18,7 @@
     </extensions>
 
     <applicationListeners>
-        <listener class="com.legendmohe.coderearranger.listeners.MyProjectManagerListener"
+        <listener class="com.legendmohe.coderearranger.MyProjectManagerListener"
                   topic="com.intellij.openapi.project.ProjectManagerListener"/>
     </applicationListeners>
 </idea-plugin>
