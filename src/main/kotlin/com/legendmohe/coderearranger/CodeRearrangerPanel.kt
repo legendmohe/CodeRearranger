@@ -49,6 +49,14 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
     private var lastEditFile: Long = 0
     private var resolver: ILanguageResolver? = null
 
+    private val kotlinResolver:KotlinResolver by lazy {
+        KotlinResolver()
+    }
+
+    private val javaResolver:JavaResolver by lazy {
+        JavaResolver()
+    }
+
     init {
         refreshBtn?.addActionListener { syncCurrentFile(null, true) }
         upBtn?.addActionListener { moveEleUp() }
@@ -320,7 +328,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
 
     fun syncCurrentFile(virtualFile: VirtualFile?, syncCaretTarget: Boolean) {
         if (!syncCaretTarget) {
-            ApplicationManager.getApplication().invokeLater { syncCurrentFileInternal(virtualFile, false) }
+            syncCurrentFileInternal(virtualFile, false)
         } else {
             debouncer?.call(CodeRearrangerPanel::class.java) { ApplicationManager.getApplication().invokeLater { syncCurrentFileInternal(virtualFile, syncCaretTarget) } }
         }
@@ -357,16 +365,16 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
             val elementAt = file.findElementAt(caretOffset)
             targetEle = resolver?.findParentClass(elementAt)
         }
-        collectCodeInfo(targetEle, true, project)
+        collectCodeInfo(targetEle, false, project)
         updateDataAndSyncSelection()
     }
 
     // TODO - 这里看看怎么重构一下
     private fun initResolverFromFile(file: PsiFile) {
         if (file is KtFile) {
-            resolver = KotlinResolver()
+            resolver = kotlinResolver
         } else if (file is PsiJavaFile) {
-            resolver = JavaResolver()
+            resolver = javaResolver
         }
     }
 
