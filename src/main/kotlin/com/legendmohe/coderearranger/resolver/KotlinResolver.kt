@@ -5,14 +5,12 @@ import com.intellij.ide.structureView.impl.common.PsiTreeElementBase
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Pair
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiParserFacade
 import com.intellij.psi.tree.IElementType
-import com.intellij.psi.util.collectDescendantsOfType
 import com.legendmohe.coderearranger.CodeRearrangerPanel
 import org.jetbrains.kotlin.idea.KotlinLanguage
 import org.jetbrains.kotlin.idea.structureView.KotlinStructureViewElement
@@ -51,46 +49,42 @@ class KotlinResolver : ILanguageResolver {
                     is KtProperty -> {
                         createPsiTreeElementFromPsiMember(childEle)?.let {
                             result.add(KotlinCodeInfo(
-                                    getCurDocument(project),
+                                    project,
                                     it,
-                                    CodeType.FIELD,
-                                    childEle.textRange
+                                    CodeType.FIELD
                             ))
                         }
                     }
                     is KtNamedFunction -> {
                         createPsiTreeElementFromPsiMember(childEle)?.let {
                             result.add(KotlinCodeInfo(
-                                    getCurDocument(project),
+                                    project,
                                     it,
-                                    CodeType.METHOD,
-                                    childEle.textRange
+                                    CodeType.METHOD
                             ))
                         }
                     }
                     is KtClass -> {
                         createPsiTreeElementFromPsiMember(childEle)?.let {
                             result.add(KotlinCodeInfo(
-                                    getCurDocument(project),
+                                    project,
                                     it,
-                                    CodeType.CLASS,
-                                    childEle.textRange
+                                    CodeType.CLASS
                             ))
                         }
                     }
                     is PsiComment -> {
                         createPsiTreeElementFromPsiMember(childEle)?.let {
                             result.add(KotlinCodeInfo(
-                                    getCurDocument(project),
+                                    project,
                                     it,
-                                    CodeType.SECTION,
-                                    childEle.textRange
+                                    CodeType.SECTION
                             ))
                         }
                     }
                 }
 
-//                println(">>  $childEle")
+                println(">>  $childEle")
                 childEle = childEle.nextSibling
             } while (childEle != null)
         }
@@ -166,11 +160,10 @@ class KotlinResolver : ILanguageResolver {
 
 
 private class KotlinCodeInfo(
-        curDocument: Document?,
+        project: Project,
         element: StructureViewTreeElement,
-        type: CodeType,
-        textRange: TextRange
-) : BaseCodeInfo(curDocument, element, type, textRange) {
+        type: CodeType
+) : BaseCodeInfo(project, element, type) {
 
     override fun getCommentTokenType(): IElementType {
         return KtTokens.EOL_COMMENT

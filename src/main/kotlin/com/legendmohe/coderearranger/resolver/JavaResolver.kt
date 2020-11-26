@@ -10,13 +10,10 @@ import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.Pair
 import com.intellij.openapi.util.TextRange
 import com.intellij.psi.*
 import com.intellij.psi.tree.IElementType
-import com.intellij.psi.util.collectDescendantsOfType
 import com.legendmohe.coderearranger.CodeRearrangerPanel
-import org.jetbrains.kotlin.lexer.KtTokens
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -48,42 +45,37 @@ class JavaResolver : ILanguageResolver {
                 when (childEle) {
                     is PsiField -> {
                         result.add(JavaCodeInfo(
-                                getCurDocument(project),
+                                project,
                                 createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.FIELD,
-                                childEle.getTextRange()
+                                CodeType.FIELD
                         ))
                     }
                     is PsiMethod -> {
                         result.add(JavaCodeInfo(
-                                getCurDocument(project),
+                                project,
                                 createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.METHOD,
-                                childEle.getTextRange()
+                                CodeType.METHOD
                         ))
                     }
                     is PsiClass -> {
                         result.add(JavaCodeInfo(
-                                getCurDocument(project),
+                                project,
                                 createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.CLASS,
-                                childEle.getTextRange()
+                                CodeType.CLASS
                         ))
                     }
                     is PsiClassInitializer -> {
                         result.add(JavaCodeInfo(
-                                getCurDocument(project),
+                                project,
                                 createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.STATIC_INITIALIZER,
-                                childEle.getTextRange()
+                                CodeType.STATIC_INITIALIZER
                         ))
                     }
                     is PsiComment -> {
                         result.add(JavaCodeInfo(
-                                getCurDocument(project),
+                                project,
                                 createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.SECTION,
-                                childEle.getTextRange()
+                                CodeType.SECTION
                         ))
                     }
                 }
@@ -153,11 +145,10 @@ class JavaResolver : ILanguageResolver {
 
 
 private class JavaCodeInfo(
-        curDocument: Document?,
+        project: Project,
         element: StructureViewTreeElement,
-        type: CodeType,
-        textRange: TextRange
-) : BaseCodeInfo(curDocument, element, type, textRange) {
+        type: CodeType
+) : BaseCodeInfo(project, element, type) {
 
     override fun getCommentTokenType(): IElementType {
         return JavaTokenType.END_OF_LINE_COMMENT

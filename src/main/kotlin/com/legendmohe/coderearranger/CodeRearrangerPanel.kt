@@ -1,5 +1,6 @@
 package com.legendmohe.coderearranger
 
+import com.intellij.lang.ASTNode
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.ScrollType
@@ -10,6 +11,8 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.psi.*
+import com.intellij.psi.impl.source.tree.Factory
+import com.intellij.psi.impl.source.tree.SharedImplUtil
 import com.legendmohe.coderearranger.TableRowTransferHandler.Reorderable
 import com.legendmohe.coderearranger.resolver.ICodeInfo
 import com.legendmohe.coderearranger.resolver.ILanguageResolver
@@ -27,6 +30,7 @@ import javax.swing.JButton
 import javax.swing.JPanel
 import javax.swing.JTable
 import javax.swing.table.AbstractTableModel
+
 
 class CodeRearrangerPanel(private val project: Project, private val toolWindow: ToolWindow) {
 
@@ -164,7 +168,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
             (it.model as AbstractTableModel).fireTableDataChanged()
             resizeColumnWidth(it)
             it.clearSelection()
-            selectedRows?.forEach { row ->
+            selectedRows?.filter { row -> row < it.rowCount }?.forEach { row ->
                 it.addRowSelectionInterval(row, row)
             }
         }
@@ -231,6 +235,8 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
         val psiComment: PsiElement = resolver?.getCommentFromText(project, SECTION_PLACEHOLDER)
                 ?: return
         val selectedEle = selectedInfo.getViewTreeElement().value as PsiElement
+        val whiteSpace: PsiElement? = nl(psiComment)
+        val whiteSpace2: PsiElement? = nl(psiComment)
         if (selectedEle is PsiComment) {
             // 注释不能再加注释
             return
@@ -238,9 +244,26 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
         selectedEle.parent?.let {
             WriteCommandAction.runWriteCommandAction(project) {
                 it.addBefore(psiComment, selectedEle)
+                // 加两行才能空一行出来，妈的
+                whiteSpace?.let { w -> it.addBefore(w, selectedEle) }
+                whiteSpace2?.let { w -> it.addBefore(w, selectedEle) }
                 syncCurrentFile(null, false)
             }
         }
+    }
+
+    /**
+    * 妈的，要这样搞
+    */
+    private fun nl(context: PsiElement): PsiWhiteSpace? {
+        var tmp: PsiElement = context
+            while (tmp !is ASTNode) {
+                tmp = tmp.firstChild
+                if (tmp == null) return null
+            }
+            val charTable = SharedImplUtil.findCharTableByTree(tmp as ASTNode?)
+        return Factory.createSingleLeafElement(TokenType.WHITE_SPACE, "\n\n",
+                    charTable, PsiManager.getInstance(project)) as PsiWhiteSpace
     }
 
     private fun exchangeElement(targetInfo: ICodeInfo, curInfo: ICodeInfo) {
