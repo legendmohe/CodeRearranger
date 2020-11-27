@@ -111,9 +111,9 @@ class KotlinResolver : ILanguageResolver {
         return if (clz.isInstance(parentEle)) {
             parentEle as T
         } else {
-            parentEle.children.mapNotNull {
+            parentEle.children.asSequence().mapNotNull {
                 matchPsiElement(it, clz)
-            }.firstOrNull() // 这里会不会全部计算?
+            }.firstOrNull()
         }
     }
 
