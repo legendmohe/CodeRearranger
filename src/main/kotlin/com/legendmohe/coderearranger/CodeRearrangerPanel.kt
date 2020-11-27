@@ -70,70 +70,89 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
     ///////////////////////////////////ui///////////////////////////////////
 
     private fun initTable() {
-        codeTable?.autoResizeMode = JTable.AUTO_RESIZE_OFF
-        codeTable?.model = object : AbstractTableModel() {
-            private val columnNames = arrayOf(
-                    "line", "name", "desc"
-            )
+        codeTable?.apply {
+            autoResizeMode = JTable.AUTO_RESIZE_OFF
+            model = object : AbstractTableModel() {
+                private val columnNames = arrayOf(
+                        "line", "name", "desc"
+                )
 
-            override fun getRowCount(): Int {
-                return codeInfos.size
-            }
-
-            override fun getColumnCount(): Int {
-                return columnNames.size
-            }
-
-            override fun getColumnName(column: Int): String {
-                return columnNames[column]
-            }
-
-            override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
-                val codeInfo = codeInfos[rowIndex]
-                if (columnIndex == 0) {
-                    return codeInfo.printLineRange()
+                override fun getRowCount(): Int {
+                    return codeInfos.size
                 }
-                return if (columnIndex == 1) {
-                    codeInfo.printTypeName()
-                } else codeInfo.printTitle()
-            }
-        }
-        codeTable?.addMouseListener(object : MouseAdapter() {
-            override fun mouseClicked(e: MouseEvent) {
-                if (e.clickCount == 2) {
-                    val target = e.source as JTable
-                    val row = target.selectedRow // select a row
-                    if (row >= codeInfos.size) {
-                        return
+
+                override fun getColumnCount(): Int {
+                    return columnNames.size
+                }
+
+                override fun getColumnName(column: Int): String {
+                    return columnNames[column]
+                }
+
+                override fun getValueAt(rowIndex: Int, columnIndex: Int): Any {
+                    val codeInfo = codeInfos[rowIndex]
+                    return when (columnIndex) {
+                        0 -> {
+                            codeInfo.printLineRange()
+                        }
+                        1 -> {
+                            codeInfo.printTypeName()
+                        }
+                        else -> {
+                            codeInfo.printTitle()
+                        }
                     }
-                    val codeInfo = codeInfos[row]
-                    val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return
-                    editor.caretModel.moveToOffset(
-                            (codeInfo.getViewTreeElement().value as PsiElement).textOffset
-                    )
-                    editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
                 }
-            }
-        })
-        codeTable?.dragEnabled = true
-        codeTable?.dropMode = DropMode.INSERT_ROWS
-        codeTable?.transferHandler = TableRowTransferHandler(codeTable, object : Reorderable {
-            override fun reorder(isMulti: Boolean, fromIndex: Int, toIndex: Int) {
-                handleDragAndDrop(isMulti, fromIndex, toIndex)
-            }
 
-            override fun finished(isMulti: Boolean) {
-                handleDragAndDropFinished(isMulti)
-            }
-        })
-        codeTable?.addHierarchyBoundsListener(object : HierarchyBoundsAdapter() {
-            override fun ancestorResized(e: HierarchyEvent) {
-                super.ancestorResized(e)
-                codeTable?.let {
-                    resizeColumnWidth(it)
+                override fun getColumnClass(columnIndex: Int): Class<*> {
+                    if (rowCount > 0) {
+                        val value = getValueAt(0, columnIndex)
+                        if (value != null) {
+                            return getValueAt(0, columnIndex).javaClass
+                        }
+                    }
+
+                    return super.getColumnClass(columnIndex)
                 }
             }
-        })
+            addMouseListener(object : MouseAdapter() {
+                override fun mouseClicked(e: MouseEvent) {
+                    if (e.clickCount == 2) {
+                        val target = e.source as JTable
+                        val row = target.selectedRow // select a row
+                        if (row >= codeInfos.size) {
+                            return
+                        }
+                        val codeInfo = codeInfos[row]
+                        val editor = FileEditorManager.getInstance(project).selectedTextEditor
+                                ?: return
+                        editor.caretModel.moveToOffset(
+                                (codeInfo.getViewTreeElement().value as PsiElement).textOffset
+                        )
+                        editor.scrollingModel.scrollToCaret(ScrollType.CENTER)
+                    }
+                }
+            })
+            dragEnabled = true
+            dropMode = DropMode.INSERT_ROWS
+            transferHandler = TableRowTransferHandler(codeTable, object : Reorderable {
+                override fun reorder(isMulti: Boolean, fromIndex: Int, toIndex: Int) {
+                    handleDragAndDrop(isMulti, fromIndex, toIndex)
+                }
+
+                override fun finished(isMulti: Boolean) {
+                    handleDragAndDropFinished(isMulti)
+                }
+            })
+            addHierarchyBoundsListener(object : HierarchyBoundsAdapter() {
+                override fun ancestorResized(e: HierarchyEvent) {
+                    super.ancestorResized(e)
+                    codeTable?.let {
+                        resizeColumnWidth(it)
+                    }
+                }
+            })
+        }
     }
 
     fun resizeColumnWidth(table: JTable) {
@@ -271,7 +290,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
             }
             val charTable = SharedImplUtil.findCharTableByTree(tmp as ASTNode?)
         return Factory.createSingleLeafElement(TokenType.WHITE_SPACE, "\n\n",
-                    charTable, PsiManager.getInstance(project)) as PsiWhiteSpace
+                charTable, PsiManager.getInstance(project)) as PsiWhiteSpace
     }
 
     private fun exchangeElement(targetInfo: ICodeInfo, curInfo: ICodeInfo) {

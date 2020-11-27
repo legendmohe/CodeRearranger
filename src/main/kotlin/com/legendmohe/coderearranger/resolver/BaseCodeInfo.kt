@@ -5,11 +5,8 @@ import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Pair
-import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.tree.IElementType
-import com.intellij.psi.util.collectDescendantsOfType
-import org.jetbrains.kotlin.lexer.KtTokens
 
 abstract class BaseCodeInfo(var project: Project,
                             var element: StructureViewTreeElement,
@@ -32,12 +29,27 @@ abstract class BaseCodeInfo(var project: Project,
         } else pair.first.toString() + "~" + pair.second
     }
 
-    override fun printTypeName(): String {
+    override fun printTypeName(): Any {
+//        return if (element is KotlinStructureViewElement) {
+//            when (val icon = (element as KotlinStructureViewElement).getIcon(false)) {
+//                is IconWrapperWithToolTip -> icon.retrieveIcon()
+//                is IconLoader.CachedImageIcon -> icon.realIcon
+//                else -> type.toString()
+//            }
+//        } else {
+//            type.toString()
+//        }
         return type.toString()
     }
 
     override fun printTitle(): String {
-        return element.presentation.presentableText ?: ""
+        if (type == CodeType.FIELD) {
+            return "<html><div style='font-style:italic;'>${element.presentation.presentableText}</div></html>"
+        } else if (type == CodeType.SECTION) {
+            return "<html><b>${element.presentation.presentableText}</b></html>"
+        } else {
+            return element.presentation.presentableText ?: ""
+        }
         // 不用额外收集了！
 //        // 额外收集line comment
 //        val title = (element.value as PsiElement?)?.collectDescendantsOfType<PsiComment> {

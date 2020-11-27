@@ -16,7 +16,7 @@ enum class CodeType {
 
 interface ICodeInfo {
     fun printLineRange(): String
-    fun printTypeName(): String
+    fun printTypeName(): Any
     fun printTitle(): String
     fun getViewTreeElement(): StructureViewTreeElement
 }
