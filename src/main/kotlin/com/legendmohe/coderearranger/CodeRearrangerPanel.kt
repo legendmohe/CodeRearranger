@@ -11,6 +11,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.wm.ToolWindow
 import com.intellij.psi.*
+import com.intellij.psi.codeStyle.CodeStyleManager
 import com.intellij.psi.impl.source.tree.Factory
 import com.intellij.psi.impl.source.tree.SharedImplUtil
 import com.legendmohe.coderearranger.TableRowTransferHandler.Reorderable
@@ -44,16 +45,17 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
     var upBtn: JButton? = null
     var downBtn: JButton? = null
     var addSection: JButton? = null
+    var reformatBtn: JButton? = null
 
     private var selectedRows: IntArray? = null
     private var lastEditFile: Long = 0
     private var resolver: ILanguageResolver? = null
 
-    private val kotlinResolver:KotlinResolver by lazy {
+    private val kotlinResolver: KotlinResolver by lazy {
         KotlinResolver()
     }
 
-    private val javaResolver:JavaResolver by lazy {
+    private val javaResolver: JavaResolver by lazy {
         JavaResolver()
     }
 
@@ -62,6 +64,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
         upBtn?.addActionListener { moveEleUp() }
         downBtn?.addActionListener { moveEleDown() }
         addSection?.addActionListener { handleAddSection() }
+        reformatBtn?.addActionListener { handleReformatFile() }
         toolWindow.activate({ syncCurrentFile(null, true) }, true)
         initTable()
         initData()
@@ -135,7 +138,7 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
             })
             dragEnabled = true
             dropMode = DropMode.INSERT_ROWS
-            transferHandler = TableRowTransferHandler(codeTable, object : Reorderable {
+            transferHandler = TableRowTransferHandler(this, object : Reorderable {
                 override fun reorder(isMulti: Boolean, fromIndex: Int, toIndex: Int) {
                     handleDragAndDrop(isMulti, fromIndex, toIndex)
                 }
@@ -280,15 +283,15 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
     }
 
     /**
-    * 妈的，要这样搞
-    */
+     * 妈的，要这样搞
+     */
     private fun nl(context: PsiElement): PsiWhiteSpace? {
         var tmp: PsiElement = context
-            while (tmp !is ASTNode) {
-                tmp = tmp.firstChild
-                if (tmp == null) return null
-            }
-            val charTable = SharedImplUtil.findCharTableByTree(tmp as ASTNode?)
+        while (tmp !is ASTNode) {
+            tmp = tmp.firstChild
+            if (tmp == null) return null
+        }
+        val charTable = SharedImplUtil.findCharTableByTree(tmp as ASTNode?)
         return Factory.createSingleLeafElement(TokenType.WHITE_SPACE, "\n\n",
                 charTable, PsiManager.getInstance(project)) as PsiWhiteSpace
     }
@@ -413,5 +416,26 @@ class CodeRearrangerPanel(private val project: Project, private val toolWindow: 
             return true
         }
         return false
+    }
+
+    /**
+     * 格式化
+     */
+    private fun handleReformatFile() {
+        WriteCommandAction.runWriteCommandAction(project) {
+            val editor = FileEditorManager.getInstance(project).selectedTextEditor
+                    ?: return@runWriteCommandAction
+            val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document)
+                    ?: return@runWriteCommandAction
+            if (editor.selectionModel.hasSelection()) {
+                CodeStyleManager.getInstance(project).reformatText(
+                        file,
+                        editor.selectionModel.selectionStart,
+                        editor.selectionModel.selectionEnd
+                )
+            } else {
+                CodeStyleManager.getInstance(project).reformat(file)
+            }
+        }
     }
 }

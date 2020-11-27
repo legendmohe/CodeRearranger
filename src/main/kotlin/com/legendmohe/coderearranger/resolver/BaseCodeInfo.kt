@@ -5,6 +5,7 @@ import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Pair
+import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.tree.IElementType
 
@@ -44,7 +45,7 @@ abstract class BaseCodeInfo(var project: Project,
 
     override fun printTitle(): String {
         if (type == CodeType.FIELD) {
-            return "<html><div style='font-style:italic;'>${element.presentation.presentableText}</div></html>"
+            return "<html>&lt; ${element.presentation.presentableText} &gt;</html>"
         } else if (type == CodeType.SECTION) {
             return "<html><b>${element.presentation.presentableText}</b></html>"
         } else {
@@ -73,3 +74,6 @@ abstract class BaseCodeInfo(var project: Project,
 
     abstract fun getCommentTokenType(): IElementType
 }
+
+
+fun isSessionComment(ele: PsiComment) = ele.text.startsWith("////////")

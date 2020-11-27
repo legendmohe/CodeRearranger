@@ -10,7 +10,6 @@ import com.intellij.lang.java.JavaLanguage
 import com.intellij.openapi.editor.Document
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
-import com.intellij.openapi.util.TextRange
 import com.intellij.psi.*
 import com.intellij.psi.tree.IElementType
 import com.legendmohe.coderearranger.CodeRearrangerPanel
@@ -44,39 +43,49 @@ class JavaResolver : ILanguageResolver {
                 }
                 when (childEle) {
                     is PsiField -> {
-                        result.add(JavaCodeInfo(
-                                project,
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.FIELD
-                        ))
+                        createPsiTreeElementFromPsiMember(childEle)?.let {
+                            result.add(JavaCodeInfo(
+                                    project,
+                                    it,
+                                    CodeType.FIELD
+                            ))
+                        }
                     }
                     is PsiMethod -> {
-                        result.add(JavaCodeInfo(
-                                project,
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.METHOD
-                        ))
+                        createPsiTreeElementFromPsiMember(childEle)?.let {
+                            result.add(JavaCodeInfo(
+                                    project,
+                                    it,
+                                    CodeType.METHOD
+                            ))
+                        }
                     }
                     is PsiClass -> {
-                        result.add(JavaCodeInfo(
-                                project,
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.CLASS
-                        ))
+                        createPsiTreeElementFromPsiMember(childEle)?.let {
+                            result.add(JavaCodeInfo(
+                                    project,
+                                    it,
+                                    CodeType.CLASS
+                            ))
+                        }
                     }
                     is PsiClassInitializer -> {
-                        result.add(JavaCodeInfo(
-                                project,
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.STATIC_INITIALIZER
-                        ))
+                        createPsiTreeElementFromPsiMember(childEle)?.let {
+                            result.add(JavaCodeInfo(
+                                    project,
+                                    it,
+                                    CodeType.STATIC_INITIALIZER
+                            ))
+                        }
                     }
                     is PsiComment -> {
-                        result.add(JavaCodeInfo(
-                                project,
-                                createPsiTreeElementFromPsiMember(childEle),
-                                CodeType.SECTION
-                        ))
+                        createPsiTreeElementFromPsiMember(childEle)?.let {
+                            result.add(JavaCodeInfo(
+                                    project,
+                                    it,
+                                    CodeType.SECTION
+                            ))
+                        }
                     }
                 }
 
@@ -102,7 +111,7 @@ class JavaResolver : ILanguageResolver {
      * @param ele
      * @return
      */
-    private fun createPsiTreeElementFromPsiMember(ele: PsiElement): StructureViewTreeElement {
+    private fun createPsiTreeElementFromPsiMember(ele: PsiElement): StructureViewTreeElement? {
         if (ele is PsiField) {
             return PsiFieldTreeElement(ele, false)
         }
@@ -119,17 +128,20 @@ class JavaResolver : ILanguageResolver {
         if (ele is PsiClassInitializer) {
             return ClassInitializerTreeElement(ele)
         }
-        return if (ele is PsiComment) {
-            object : PsiTreeElementBase<PsiComment?>(ele) {
-                override fun getPresentableText(): String? {
-                    return ele.getText()
-                }
+        if (ele is PsiComment) {
+            if (isSessionComment(ele)) {
+                return object : PsiTreeElementBase<PsiComment?>(ele) {
+                    override fun getPresentableText(): String? {
+                        return ele.getText()
+                    }
 
-                override fun getChildrenBase(): Collection<StructureViewTreeElement> {
-                    return emptyList()
+                    override fun getChildrenBase(): Collection<StructureViewTreeElement> {
+                        return emptyList()
+                    }
                 }
             }
-        } else PsiFieldTreeElement(null, false)
+        }
+        return null
     }
 
     private fun getCurDocument(project: Project): Document? {

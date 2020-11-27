@@ -14,7 +14,7 @@ class TableRowTransferHandler(
         private var reorderable: Reorderable
 ) : TransferHandler() {
 
-    private val localObjectFlavor = DataFlavor(Int::class.java, "Integer Row Index")
+    private val localObjectFlavor = DataFlavor(Int::class.javaObjectType, "Integer Row Index")
 
     override fun createTransferable(c: JComponent): Transferable {
         assert(c === table)
