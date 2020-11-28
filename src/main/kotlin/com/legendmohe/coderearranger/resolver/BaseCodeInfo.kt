@@ -27,7 +27,7 @@ abstract class BaseCodeInfo(var project: Project,
         val pair = lineNumber
         return if (pair.first == pair.second) {
             pair.first.toString()
-        } else pair.first.toString() + "~" + pair.second
+        } else pair.first.inc().toString() + "~" + pair.second.inc()
     }
 
     override fun printTypeName(): Any {

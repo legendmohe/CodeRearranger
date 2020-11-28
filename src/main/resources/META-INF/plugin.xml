@@ -21,4 +21,16 @@
         <listener class="com.legendmohe.coderearranger.MyProjectManagerListener"
                   topic="com.intellij.openapi.project.ProjectManagerListener"/>
     </applicationListeners>
+
+    <actions>
+        <group id="LineDesc.GotoPragmaMark">
+            <action id="GotoPragmaMark" class="com.legendmohe.pragmamark.GotoPragmaMarkAction">
+                <keyboard-shortcut first-keystroke="ctrl alt COMMA" keymap="$default"/>
+                <keyboard-shortcut first-keystroke="ctrl alt COMMA" keymap="Mac OS X 10.5+"/>
+                <keyboard-shortcut first-keystroke="ctrl alt COMMA" keymap="Mac OS X"/>
+            </action>
+
+            <add-to-group group-id="GoToMenu" anchor="first"/>
+        </group>
+    </actions>
 </idea-plugin>
