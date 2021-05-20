@@ -24,13 +24,13 @@ class MyProjectService(project: Project) : BulkFileListener {
 
     override fun after(events: List<VFileEvent>) {
         println("CodeRearrangerComponent after events=$events")
-        for (event in events) {
-            if (event is VFileContentChangeEvent) {
-                if (event.oldModificationStamp != event.modificationStamp) {
-                    listener?.onCodeUpdate(event.file)
-                }
-            }
-        }
+//        for (event in events) {
+//            if (event is VFileContentChangeEvent) {
+//                if (event.oldModificationStamp != event.modificationStamp) {
+//                    listener?.onCodeUpdate(event.file)
+//                }
+//            }
+//        }
     }
 
     ///////////////////////////////////public///////////////////////////////////
