@@ -9,17 +9,24 @@ import com.intellij.psi.PsiComment
 import com.intellij.psi.PsiElement
 import com.intellij.psi.tree.IElementType
 
-abstract class BaseCodeInfo(var project: Project,
-                            var element: StructureViewTreeElement,
-                            private var type: CodeType) : ICodeInfo {
+abstract class BaseCodeInfo(
+    var project: Project,
+    var element: StructureViewTreeElement,
+    private var type: CodeType
+) : ICodeInfo {
 
     private val lineNumber: Pair<Int, Int>
         get() {
             val curDocument = getCurDocument(project) ?: return Pair(0, 0)
             val textRange = (element.value as PsiElement?)?.textRange ?: return Pair(0, 0)
+            if (!(textRange.startOffset in (0..curDocument.textLength) &&
+                        textRange.endOffset in (0..curDocument.textLength))
+            ) {
+                return Pair(0, 0)
+            }
             return Pair(
-                    curDocument.getLineNumber(textRange.startOffset),
-                    curDocument.getLineNumber(textRange.endOffset)
+                curDocument.getLineNumber(textRange.startOffset),
+                curDocument.getLineNumber(textRange.endOffset)
             )
         }
 
