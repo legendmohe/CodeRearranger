@@ -11,7 +11,7 @@ interface ILanguageResolver {
 }
 
 enum class CodeType {
-    METHOD, FIELD, CLASS, STATIC_INITIALIZER, SECTION
+    UNKNOWN, METHOD, FIELD, CLASS, STATIC_INITIALIZER, SECTION
 }
 
 interface ICodeInfo {

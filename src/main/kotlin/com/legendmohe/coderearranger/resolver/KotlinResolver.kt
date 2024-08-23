@@ -45,43 +45,15 @@ class KotlinResolver : ILanguageResolver {
                 if (childEle == null) {
                     continue
                 }
-                when (childEle) {
-                    is KtProperty -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(KotlinCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.FIELD
-                            ))
-                        }
-                    }
-                    is KtNamedFunction -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(KotlinCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.METHOD
-                            ))
-                        }
-                    }
-                    is KtClass -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(KotlinCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.CLASS
-                            ))
-                        }
-                    }
-                    is PsiComment -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(KotlinCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.SECTION
-                            ))
-                        }
-                    }
+                val codeType = when (childEle) {
+                    is KtProperty -> CodeType.FIELD
+                    is KtNamedFunction -> CodeType.METHOD
+                    is KtClass -> CodeType.CLASS
+                    is PsiComment -> CodeType.SECTION
+                    else -> CodeType.UNKNOWN
+                }
+                createPsiTreeElementFromPsiMember(childEle)?.let {
+                    result.add(KotlinCodeInfo(project, it, codeType))
                 }
 
                 println(">>  $childEle")
@@ -160,9 +132,9 @@ class KotlinResolver : ILanguageResolver {
 
 
 private class KotlinCodeInfo(
-        project: Project,
-        element: StructureViewTreeElement,
-        type: CodeType
+    project: Project,
+    element: StructureViewTreeElement,
+    type: CodeType
 ) : BaseCodeInfo(project, element, type) {
 
     override fun getCommentTokenType(): IElementType {

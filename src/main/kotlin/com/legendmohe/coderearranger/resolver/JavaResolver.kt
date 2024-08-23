@@ -41,52 +41,16 @@ class JavaResolver : ILanguageResolver {
                 if (childEle == null) {
                     continue
                 }
-                when (childEle) {
-                    is PsiField -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(JavaCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.FIELD
-                            ))
-                        }
-                    }
-                    is PsiMethod -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(JavaCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.METHOD
-                            ))
-                        }
-                    }
-                    is PsiClass -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(JavaCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.CLASS
-                            ))
-                        }
-                    }
-                    is PsiClassInitializer -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(JavaCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.STATIC_INITIALIZER
-                            ))
-                        }
-                    }
-                    is PsiComment -> {
-                        createPsiTreeElementFromPsiMember(childEle)?.let {
-                            result.add(JavaCodeInfo(
-                                    project,
-                                    it,
-                                    CodeType.SECTION
-                            ))
-                        }
-                    }
+                val codeType = when (childEle) {
+                    is PsiField -> CodeType.FIELD
+                    is PsiMethod -> CodeType.METHOD
+                    is PsiClass -> CodeType.CLASS
+                    is PsiClassInitializer -> CodeType.STATIC_INITIALIZER
+                    is PsiComment -> CodeType.SECTION
+                    else -> CodeType.UNKNOWN
+                }
+                createPsiTreeElementFromPsiMember(childEle)?.let {
+                    result.add(JavaCodeInfo(project, it, codeType))
                 }
 
 //            System.out.println(">>  " + childEle.toString());
@@ -119,11 +83,7 @@ class JavaResolver : ILanguageResolver {
             return PsiMethodTreeElement(ele, false)
         }
         if (ele is PsiClass) {
-            return JavaClassTreeElement(ele, false, object : HashSet<PsiClass?>() {
-                init {
-                    add(ele)
-                }
-            })
+            return JavaClassTreeElement(ele, false)
         }
         if (ele is PsiClassInitializer) {
             return ClassInitializerTreeElement(ele)
@@ -157,9 +117,9 @@ class JavaResolver : ILanguageResolver {
 
 
 private class JavaCodeInfo(
-        project: Project,
-        element: StructureViewTreeElement,
-        type: CodeType
+    project: Project,
+    element: StructureViewTreeElement,
+    type: CodeType
 ) : BaseCodeInfo(project, element, type) {
 
     override fun getCommentTokenType(): IElementType {
